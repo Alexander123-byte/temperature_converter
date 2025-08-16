@@ -6,6 +6,18 @@ import os
 
 
 class TemperatureConverter:
+    @staticmethod
+    def c_to_f(celsius):
+        if celsius < -273.15:
+            raise ValueError("Температура ниже абсолютного нуля (-273.15°C) невозможна!")
+        return (celsius * 9 / 5) + 32
+
+    @staticmethod
+    def f_to_c(fahrenheit):
+        if fahrenheit < -459.67:
+            raise ValueError("Температура ниже абсолютного нуля (-459.67°F) невозможна!")
+        return (fahrenheit - 32) * 5 / 9
+
     def __init__(self, root):
         self.root = root
         self.root.title("Умный конвертер температур")
@@ -45,7 +57,7 @@ class TemperatureConverter:
         ttk.Label(input_frame, text="Введите температуру:").pack(anchor=tk.W)
         entry = ttk.Entry(input_frame, textvariable=self.input_var)
         entry.pack(fill=tk.X, pady=5)
-        entry.bind("<Return>", lambda e: self.converter())
+        entry.bind("<Return>", lambda e: self.convert())
 
         # Кнопка конвертации
         ttk.Button(
@@ -95,24 +107,17 @@ class TemperatureConverter:
     def convert(self):
         try:
             temp = float(self.input_var.get())
-            mode = self.mode.get()
 
-            if mode == "c_to_f":
-                if temp < -273.15:
-                    messagebox.showerror("Ошибка!", "Температура ниже абсолютного нуля (-273.15°C) невозможна!")
-                    return
-                result = (temp * 9 / 5) + 32
+            if self.mode.get() == "c_to_f":
+                result = TemperatureConverter.c_to_f(temp)
                 self.result_label.config(text=f"{temp}°C = {result:.2f}°F")
                 self.add_to_history(f"{temp}°C", f"{result:.2f}°F")
             else:
-                if temp < 459.67:
-                    messagebox.showerror("Ошибка!", "Температура ниже абсолютного нуля (-459.67°F) невозможна!")
-                    return
-                result = (temp - 32) * 5 / 9
+                result = TemperatureConverter.f_to_c(temp)
                 self.result_label.config(text=f"{temp}°F = {result:.2f}°C")
                 self.add_to_history(f"{temp}°F", f"{result:.2f}°C")
-        except ValueError:
-            messagebox.showerror("Ошибка!", "Пожалуйста, введите корректное число!")
+        except ValueError as e:
+            messagebox.showerror("Ошибка", str(e))
 
     def add_to_history(self, input_temp, result_temp):
         timestamp = datetime.now().strftime("%H:%M:%S")
