@@ -9,14 +9,26 @@ class TemperatureConverter:
     @staticmethod
     def c_to_f(celsius):
         if celsius < -273.15:
-            raise ValueError("Температура ниже абсолютного нуля (-273.15°C) невозможна!")
+            raise ValueError("Температура ниже абсолютного нуля!")
         return (celsius * 9 / 5) + 32
 
     @staticmethod
     def f_to_c(fahrenheit):
         if fahrenheit < -459.67:
-            raise ValueError("Температура ниже абсолютного нуля (-459.67°F) невозможна!")
+            raise ValueError("Температура ниже абсолютного нуля!")
         return (fahrenheit - 32) * 5 / 9
+
+    @staticmethod
+    def c_to_k(celsius):
+        if celsius < -273.15:
+            raise ValueError("Ниже абсолютного нуля!")
+        return celsius + 273.15
+
+    @staticmethod
+    def k_to_c(kelvin):
+        if kelvin < 0:
+            raise ValueError("Ниже абсолютного нуля!")
+        return kelvin - 273.15
 
     def __init__(self, root):
         self.root = root
@@ -43,15 +55,20 @@ class TemperatureConverter:
         mode_frame = ttk.LabelFrame(input_frame, text="Режим конвертации")
         mode_frame.pack(fill=tk.X, pady=5)
 
-        ttk.Radiobutton(
-            mode_frame, text="Цельсий → Фаренгейт",
-            variable=self.mode, value='c_to_f'
-        ).pack(anchor=tk.W)
+        modes = [
+            ("Цельсий → Фаренгейт", "c_to_f"),
+            ("Фаренгейт → Цельсий", "f_to_c"),
+            ("Цельсий → Кельвины", "c_to_k"),
+            ("Кельвины → Цельсий", "k_to_c")
+        ]
 
-        ttk.Radiobutton(
-            mode_frame, text="Фаренгейт → Цельсий",
-            variable=self.mode, value='f_to_c'
-        ).pack(anchor=tk.W)
+        for text, mode in modes:
+            ttk.Radiobutton(
+                mode_frame,
+                text=text,
+                variable=self.mode,
+                value=mode
+            ).pack(anchor=tk.W, pady=2)
 
         # Поле ввода
         ttk.Label(input_frame, text="Введите температуру:").pack(anchor=tk.W)
@@ -107,15 +124,28 @@ class TemperatureConverter:
     def convert(self):
         try:
             temp = float(self.input_var.get())
+            mode = self.mode.get()
 
-            if self.mode.get() == "c_to_f":
+            if mode == "c_to_f":
                 result = TemperatureConverter.c_to_f(temp)
                 self.result_label.config(text=f"{temp}°C = {result:.2f}°F")
                 self.add_to_history(f"{temp}°C", f"{result:.2f}°F")
-            else:
+
+            elif mode == "f_to_c":
                 result = TemperatureConverter.f_to_c(temp)
                 self.result_label.config(text=f"{temp}°F = {result:.2f}°C")
                 self.add_to_history(f"{temp}°F", f"{result:.2f}°C")
+
+            elif mode == "c_to_k":
+                result = TemperatureConverter.c_to_k(temp)
+                self.result_label.config(text=f"{temp}°C = {result:.2f}K")
+                self.add_to_history(f"{temp}°C", f"{result:.2f}K")
+
+            elif mode == "k_to_c":
+                result = TemperatureConverter.k_to_c(temp)
+                self.result_label.config(text=f"{temp}K = {result:.2f}°C")
+                self.add_to_history(f"{temp}K", f"{result:.2f}°C")
+
         except ValueError as e:
             messagebox.showerror("Ошибка", str(e))
 
