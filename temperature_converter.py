@@ -6,6 +6,10 @@ import os
 
 
 class TemperatureConverter:
+    def __init__(self):
+        style = ttk.Style()
+        style.configure("TNotebook.Tab", padding=(10, 5), font=('Arial', 10))
+
     @staticmethod
     def c_to_f(celsius):
         if celsius < -273.15:
@@ -21,13 +25,13 @@ class TemperatureConverter:
     @staticmethod
     def c_to_k(celsius):
         if celsius < -273.15:
-            raise ValueError("Ниже абсолютного нуля!")
+            raise ValueError("Температура ниже абсолютного нуля!")
         return celsius + 273.15
 
     @staticmethod
     def k_to_c(kelvin):
         if kelvin < 0:
-            raise ValueError("Ниже абсолютного нуля!")
+            raise ValueError("Температура ниже абсолютного нуля!")
         return kelvin - 273.15
 
     def __init__(self, root):
@@ -47,12 +51,12 @@ class TemperatureConverter:
         self.create_widgets()
 
     def create_widgets(self):
-        # Фрейм для ввода
-        input_frame = ttk.Frame(self.root, padding="10")
-        input_frame.pack(fill=tk.X)
+        # Основное окно - конвертер
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Переключатель режимов
-        mode_frame = ttk.LabelFrame(input_frame, text="Режим конвертации")
+        mode_frame = ttk.LabelFrame(main_frame, text="Режим конвертации")
         mode_frame.pack(fill=tk.X, pady=5)
 
         modes = [
@@ -71,55 +75,80 @@ class TemperatureConverter:
             ).pack(anchor=tk.W, pady=2)
 
         # Поле ввода
-        ttk.Label(input_frame, text="Введите температуру:").pack(anchor=tk.W)
-        entry = ttk.Entry(input_frame, textvariable=self.input_var)
+        ttk.Label(main_frame, text="Введите температуру:").pack(anchor=tk.W)
+        entry = ttk.Entry(main_frame, textvariable=self.input_var)
         entry.pack(fill=tk.X, pady=5)
         entry.bind("<Return>", lambda e: self.convert())
 
         # Кнопка конвертации
         ttk.Button(
-            input_frame, text="Конвертировать",
+            main_frame, text="Конвертировать",
             command=self.convert
         ).pack(pady=10)
 
         # Результат
         self.result_label = ttk.Label(
-            input_frame, text="",
+            main_frame, text="",
             font=("Arial", 12, "bold")
         )
         self.result_label.pack()
 
-        # История
-        history_frame = ttk.LabelFrame(self.root, text="История конвертаций", padding="10")
-        history_frame.pack(fill=tk.BOTH, pady=5, expand=True, padx=10)
+        # Кнопка открытия истории
+        ttk.Button(
+            main_frame, text="Показать историю",
+            command=self.open_history_window
+        ). pack(pady=20)
 
-        self.history_tree = ttk.Treeview(
-            history_frame,
+    def open_history_window(self):
+        # Создаем новое окно
+        history_window = tk.Toplevel(self.root)
+        history_window.title("История конвертации")
+        history_window.geometry("500x300")
+
+        history_tree = ttk.Treeview(
+            history_window,
             columns=("time", "input", "result"),
             show="headings",
-            height=5
+            height=10
         )
 
-        self.history_tree.heading("time", text="Время")
-        self.history_tree.heading("input", text="Ввод")
-        self.history_tree.heading("result", text="Результат")
+        # Настройка колонок
+        history_tree.heading("time", text="Время")
+        history_tree.heading("input", text="Ввод")
+        history_tree.heading("result", text="Результат")
 
-        self.history_tree.column("time", width=80)
-        self.history_tree.column("input", width=100)
-        self.history_tree.column("result", width=150)
+        history_tree.column("time", width=120)
+        history_tree.column("input", width=150)
+        history_tree.column("result", width=150)
 
-        scrollbar = ttk.Scrollbar(history_frame, orient=tk.VERTICAL, command=self.history_tree.yview)
-        self.history_tree.configure(yscroll=scrollbar.set)
+        # Скроллбар
+        scrollbar = ttk.Scrollbar(history_window, orient=tk.VERTICAL, command=history_tree.yview)
+        history_tree.configure(yscroll=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.history_tree.pack(fill=tk.BOTH, expand=True)
+        history_tree.pack(fill=tk.BOTH, expand=True)
 
-        # Кнопка очистки истории
+        # Заполнение данными
+        for item in self.history:
+            history_tree.insert("", tk.END, values=item)
+
+        # Кнопки управления историей
+        btn_frame = ttk.Frame(history_window)
+        btn_frame.pack(pady=10)
+
         ttk.Button(
-            history_frame, text="Очистить историю",
-            command=self.clear_history
-        ).pack(pady=5)
+            btn_frame, text="Очистить историю",
+            command=lambda: [self.clear_history(), history_window.destroy()]
+        ).pack(side=tk.LEFT, padx=10)
 
-        self.update_history_display()
+        ttk.Button(
+            btn_frame, text="Экспорт в CSV",
+            command=lambda: [self.clear_history(), history_window.destroy()]
+        ).pack(side=tk.LEFT, padx=10)
+
+        ttk.Button(
+            btn_frame, text="Закрыть",
+            command=history_window.destroy
+        ). pack(side=tk.RIGHT, padx=10)
 
     def convert(self):
         try:
@@ -153,11 +182,24 @@ class TemperatureConverter:
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.history.insert(0, (timestamp, input_temp, result_temp))
 
-        if len(self.history) > 10:  # Ограничиваем историю 10 последними записями
-            self.history = self.history[:10]
+        if len(self.history) > 15:  # Ограничиваем историю 10 последними записями
+            self.history = self.history[:15]
 
         self.save_history()
-        self.update_history_display()
+
+    def export_history(self):
+        import csv
+        from tkinter import filedialog
+
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv")]
+        )
+        if file_path:
+            with open(file_path, "w", newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(["Time", "Input", "Result"])
+                writer.writerows(self.history)
 
     def update_history_display(self):
         self.history_tree.delete(*self.history_tree.get_children())
@@ -167,7 +209,6 @@ class TemperatureConverter:
     def clear_history(self):
         self.history = []
         self.save_history()
-        self.update_history_display()
 
     def save_history(self):
         with open("converter_history.json", "w") as f:
