@@ -25,6 +25,11 @@ class TestTemperatureConverter(unittest.TestCase):
         with self.assertRaises(ValueError):
             TemperatureConverter.f_to_c(-460)  # Ниже -459.67°F
 
+    def test_boundary_values(self):
+        # Проверка граничных допустимых значений
+        self.assertAlmostEqual(TemperatureConverter.f_to_c(-459.67), -273.15)
+        self.assertAlmostEqual(TemperatureConverter.c_to_f(-273.15), -459.67)
+
 
 if __name__ == '__main__':
     unittest.main()
