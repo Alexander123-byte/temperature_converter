@@ -4,14 +4,12 @@ from temperature_converter import TemperatureConverter
 
 class TestTemperatureConverter(unittest.TestCase):
     def test_celsius_to_fahrenheit(self):
-        # Тестируем обычные значения
         self.assertAlmostEqual(TemperatureConverter.c_to_f(0), 32)
         self.assertAlmostEqual(TemperatureConverter.c_to_f(100), 212)
         self.assertAlmostEqual(TemperatureConverter.c_to_f(-40), -40)  # Особый случай
         self.assertAlmostEqual(TemperatureConverter.c_to_f(37.5), 99.5)  # Дробные значения
 
     def test_fahrenheit_to_celsius(self):
-        # Тестируем обычные значения
         self.assertAlmostEqual(TemperatureConverter.f_to_c(32), 0)
         self.assertAlmostEqual(TemperatureConverter.f_to_c(212), 100)
         self.assertAlmostEqual(TemperatureConverter.f_to_c(-40), -40)  # Особый случай
@@ -24,6 +22,22 @@ class TestTemperatureConverter(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             TemperatureConverter.f_to_c(-460)  # Ниже -459.67°F
+
+    def test_celsius_to_kelvin(self):
+        self.assertAlmostEqual(TemperatureConverter.c_to_k(0), 273.15)
+        self.assertAlmostEqual(TemperatureConverter.c_to_k(-273.15), 0)
+        self.assertAlmostEqual(TemperatureConverter.c_to_k(100), 373.15)
+
+    def test_kelvin_to_celsius(self):
+        self.assertAlmostEqual(TemperatureConverter.k_to_c(273.15), 0)
+        self.assertAlmostEqual(TemperatureConverter.k_to_c(373.15), 100)
+        self.assertAlmostEqual(TemperatureConverter.k_to_c(0), -273.15)
+
+    def test_kelvin_absolute_zero(self):
+        with self.assertRaises(ValueError):
+            TemperatureConverter.k_to_c(-1)
+        with self.assertRaises(ValueError):
+            TemperatureConverter.c_to_k(-274)
 
     def test_boundary_values(self):
         # Проверка граничных допустимых значений
