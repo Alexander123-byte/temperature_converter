@@ -95,7 +95,7 @@ class TemperatureConverter:
 
         # Кнопка открытия истории
         ttk.Button(
-            main_frame, text="Показать историю",
+            main_frame, text="Показать историю (CTRL+H)",
             command=self.open_history_window
         ). pack(pady=20)
 
@@ -103,7 +103,7 @@ class TemperatureConverter:
         # Создаем новое окно
         history_window = tk.Toplevel(self.root)
         history_window.title("История конвертации")
-        history_window.geometry("500x300")
+        history_window.geometry("500x300+200+200")
 
         history_tree = ttk.Treeview(
             history_window,
@@ -111,6 +111,13 @@ class TemperatureConverter:
             show="headings",
             height=10
         )
+
+        self.root.bind("<Control-h>", lambda e: self.open_history_window())
+
+        # Запрещение создания нескольких окон
+        history_window.focus_set()
+        history_window.grab_set()
+
 
         # Настройка колонок
         history_tree.heading("time", text="Время")
