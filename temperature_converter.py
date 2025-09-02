@@ -6,9 +6,6 @@ import os
 
 
 class TemperatureConverter:
-    def __init__(self):
-        style = ttk.Style()
-        style.configure("TNotebook.Tab", padding=(10, 5), font=('Arial', 10))
 
     @staticmethod
     def c_to_f(celsius):
@@ -46,6 +43,10 @@ class TemperatureConverter:
         # Переменные
         self.mode = tk.StringVar(value='c_to_f')
         self.input_var = tk.StringVar()
+        self.valid_input = tk.BooleanVar(value=True)  # Добавлено
+
+        # Регистрируем функцию валидации
+        self.validate_cmd = root.register(self.validate_input)
 
         # Создание интерфейса
         self.create_widgets()
@@ -76,9 +77,35 @@ class TemperatureConverter:
 
         # Поле ввода
         ttk.Label(main_frame, text="Введите температуру:").pack(anchor=tk.W)
-        entry = ttk.Entry(main_frame, textvariable=self.input_var)
-        entry.pack(fill=tk.X, pady=5)
-        entry.bind("<Return>", lambda e: self.convert())
+
+        # Создаем стиль для валидации - ИСПРАВЛЕНО
+        style = ttk.Style()
+        style.configure("Invalid.TEntry", foreground="red", background="#ffeeee")
+
+        # Поле ввода с валидацией
+        self.entry = ttk.Entry(
+            main_frame,
+            textvariable=self.input_var,
+            validate="key",
+            validatecommand=(self.validate_cmd, "%P")
+        )
+        self.entry.pack(fill=tk.X, pady=5)
+
+        # Биндинги для поля ввода
+        self.entry.bind("<Return>", lambda e: self.convert())
+        self.entry.bind("<<Paste>>", lambda e: self.on_paste())
+
+        # Подсказка под полем ввода
+        self.validation_label = ttk.Label(
+            main_frame,
+            text="",
+            foreground="red",
+            font=("Arial", 9)
+        )
+        self.validation_label.pack(anchor=tk.W)
+
+        # Следим за изменениями валидности
+        self.valid_input.trace_add("write", self.update_validation_status)
 
         # Кнопка конвертации
         ttk.Button(
@@ -97,7 +124,67 @@ class TemperatureConverter:
         ttk.Button(
             main_frame, text="Показать историю (CTRL+H)",
             command=self.open_history_window
-        ). pack(pady=20)
+        ).pack(pady=20)
+
+    def update_validation_status(self, *args):
+        """Обновляет подсказку и визуальное отображение валидности"""
+        current_text = self.input_var.get()
+
+        if not self.valid_input.get() and current_text not in ("", "-"):
+            self.validation_label.config(text="Введите число (например: 23.5 или -10)")
+            # Красный фон для ошибки, черный текст для читаемости
+            self.entry.config(background="#ffcccc", foreground="black")
+        else:
+            self.validation_label.config(text="")
+            # Стандартные цвета
+            self.entry.config(background="white", foreground="black")
+
+    def validate_input(self, new_text):
+        """Проверяет корректность ввода в реальном времени"""
+        if new_text == "" or new_text == "-":
+            self.valid_input.set(True)
+            return True
+
+        # Разрешаем отрицательные числа
+        if new_text.startswith("-"):
+            number_part = new_text[1:]
+            if number_part == "" or number_part == ".":
+                self.valid_input.set(True)
+                return True
+            try:
+                float(number_part)
+                self.valid_input.set(True)
+                return True
+            except ValueError:
+                self.valid_input.set(False)
+                return False
+
+        try:
+            float(new_text)
+            self.valid_input.set(True)
+            return True
+        except ValueError:
+            self.valid_input.set(False)
+            return False
+
+    def show_validation_error(self):
+        """Визуальное оповещение об ошибке (мигание)"""
+        original_bg = self.entry.cget("background")
+        original_fg = self.entry.cget("foreground")
+
+        # Мигание красным фоном, но сохраняем черный текст
+        self.entry.config(background="#ffcccc", foreground="black")
+        self.entry.after(300, lambda: self.entry.config(
+            background=original_bg,
+            foreground=original_fg
+        ))
+
+    def validate_paste(self, text):
+        try:
+            float(text)
+            return True
+        except ValueError:
+            return False
 
     def open_history_window(self):
         # Создаем новое окно
@@ -111,13 +198,6 @@ class TemperatureConverter:
             show="headings",
             height=10
         )
-
-        self.root.bind("<Control-h>", lambda e: self.open_history_window())
-
-        # Запрещение создания нескольких окон
-        history_window.focus_set()
-        history_window.grab_set()
-
 
         # Настройка колонок
         history_tree.heading("time", text="Время")
@@ -149,15 +229,22 @@ class TemperatureConverter:
 
         ttk.Button(
             btn_frame, text="Экспорт в CSV",
-            command=lambda: [self.clear_history(), history_window.destroy()]
+            command=self.export_history  # Исправлено: убрано лишнее
         ).pack(side=tk.LEFT, padx=10)
 
         ttk.Button(
             btn_frame, text="Закрыть",
             command=history_window.destroy
-        ). pack(side=tk.RIGHT, padx=10)
+        ).pack(side=tk.RIGHT, padx=10)
 
-    def convert(self):
+        # Запрещение создания нескольких окон
+        history_window.focus_set()
+        history_window.grab_set()
+
+    def convert(self, event=None):
+        if not self.valid_input.get():
+            messagebox.showerror("Ошибка", "Некорректный ввод. Введите число.")
+            return
         try:
             temp = float(self.input_var.get())
             mode = self.mode.get()
@@ -189,7 +276,7 @@ class TemperatureConverter:
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.history.insert(0, (timestamp, input_temp, result_temp))
 
-        if len(self.history) > 15:  # Ограничиваем историю 10 последними записями
+        if len(self.history) > 15:
             self.history = self.history[:15]
 
         self.save_history()
@@ -207,11 +294,6 @@ class TemperatureConverter:
                 writer = csv.writer(f)
                 writer.writerow(["Time", "Input", "Result"])
                 writer.writerows(self.history)
-
-    def update_history_display(self):
-        self.history_tree.delete(*self.history_tree.get_children())
-        for item in self.history:
-            self.history_tree.insert("", tk.END, values=item)
 
     def clear_history(self):
         self.history = []
