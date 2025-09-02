@@ -9,32 +9,46 @@ class TemperatureConverter:
 
     @staticmethod
     def c_to_f(celsius):
+        """Цельсий → Фаренгейт"""
         if celsius < -273.15:
             raise ValueError("Температура ниже абсолютного нуля!")
         return (celsius * 9 / 5) + 32
 
     @staticmethod
     def f_to_c(fahrenheit):
+        """Фаренгейт → Цельсий"""
         if fahrenheit < -459.67:
             raise ValueError("Температура ниже абсолютного нуля!")
         return (fahrenheit - 32) * 5 / 9
 
     @staticmethod
     def c_to_k(celsius):
+        """Цельсий → Кельвин"""
         if celsius < -273.15:
             raise ValueError("Температура ниже абсолютного нуля!")
         return celsius + 273.15
 
     @staticmethod
     def k_to_c(kelvin):
+        """Кельвин → Цельсий"""
         if kelvin < 0:
             raise ValueError("Температура ниже абсолютного нуля!")
         return kelvin - 273.15
 
+    @staticmethod
+    def f_to_k(fahrenheit):
+        """Фаренгейт → Кельвин"""
+        return TemperatureConverter.c_to_k(TemperatureConverter.f_to_c(fahrenheit))
+
+    @staticmethod
+    def k_to_f(kelvin):
+        """Кельвин → Фаренгейт"""
+        return TemperatureConverter.c_to_f(TemperatureConverter.k_to_c(kelvin))
+
     def __init__(self, root):
         self.root = root
         self.root.title("Умный конвертер температур")
-        self.root.geometry("450x450")
+        self.root.geometry("500x500")
 
         # История конвертаций
         self.history = []
@@ -53,47 +67,69 @@ class TemperatureConverter:
 
     def create_widgets(self):
         # Основное окно - конвертер
-        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame = ttk.Frame(self.root, padding="15")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Переключатель режимов
-        mode_frame = ttk.LabelFrame(main_frame, text="Режим конвертации")
-        mode_frame.pack(fill=tk.X, pady=5)
+        # Заголовок
+        title_label = tk.Label(
+            main_frame,
+            text="Конвертер температур",
+            font=("Arial", 16, "bold")
+        )
+        title_label.pack(pady=(0, 20))
 
-        modes = [
-            ("Цельсий → Фаренгейт", "c_to_f"),
-            ("Фаренгейт → Цельсий", "f_to_c"),
-            ("Цельсий → Кельвины", "c_to_k"),
-            ("Кельвины → Цельсий", "k_to_c")
-        ]
+        # Фрейм для выбора конвертации
+        conversion_frame = ttk.LabelFrame(main_frame, text="Выберите конвертацию")
+        conversion_frame.pack(fill=tk.X, pady=10)
 
-        for text, mode in modes:
-            ttk.Radiobutton(
-                mode_frame,
-                text=text,
-                variable=self.mode,
-                value=mode
-            ).pack(anchor=tk.W, pady=2)
+        # Выпадающие списки
+        input_frame = ttk.Frame(conversion_frame)
+        input_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Label(input_frame, text="Из:").pack(side=tk.LEFT, padx=(0, 10))
+
+        self.from_unit = ttk.Combobox(
+            input_frame,
+            values=["Цельсий", "Фаренгейт", "Кельвин"],
+            state="readonly",
+            width=15
+        )
+        self.from_unit.set("Цельсий")
+        self.from_unit.pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Label(input_frame, text="в:").pack(side=tk.LEFT, padx=(0, 10))
+
+        self.to_unit = ttk.Combobox(
+            input_frame,
+            values=["Фаренгейт", "Кельвин", "Цельсий"],
+            state="readonly",
+            width=15
+        )
+        self.to_unit.set("Фаренгейт")
+        self.to_unit.pack(side=tk.LEFT)
+
+        # ДОБАВЛЯЕМ ПРИВЯЗКУ СОБЫТИЙ ПОСЛЕ СОЗДАНИЯ КОМБОБОКСОВ
+        self.from_unit.bind("<<ComboboxSelected>>", lambda e: self.on_unit_change())
+        self.to_unit.bind("<<ComboboxSelected>>", lambda e: self.on_unit_change())
 
         # Поле ввода
-        ttk.Label(main_frame, text="Введите температуру:").pack(anchor=tk.W)
+        input_label_frame = ttk.LabelFrame(main_frame)
+        input_label_frame.pack(fill=tk.X, pady=10)
 
-        # Создаем стиль для валидации - ИСПРАВЛЕНО
-        style = ttk.Style()
-        style.configure("Invalid.TEntry", foreground="red", background="#ffeeee")
+        ttk.Label(input_label_frame, text="Введите температуру:", font=("Arial", 10)).pack(anchor=tk.W)
 
-        # Поле ввода с валидацией
         self.entry = ttk.Entry(
             main_frame,
             textvariable=self.input_var,
             validate="key",
-            validatecommand=(self.validate_cmd, "%P")
+            validatecommand=(self.validate_cmd, "%P"),
+            font=("Arial", 12)
         )
-        self.entry.pack(fill=tk.X, pady=5)
+        self.entry.pack(fill=tk.X, pady=(0, 10))
+        self.entry.focus_set()
 
         # Биндинги для поля ввода
         self.entry.bind("<Return>", lambda e: self.convert())
-        self.entry.bind("<<Paste>>", lambda e: self.on_paste())
 
         # Подсказка под полем ввода
         self.validation_label = ttk.Label(
@@ -108,23 +144,67 @@ class TemperatureConverter:
         self.valid_input.trace_add("write", self.update_validation_status)
 
         # Кнопка конвертации
-        ttk.Button(
-            main_frame, text="Конвертировать",
-            command=self.convert
-        ).pack(pady=10)
+        convert_btn = ttk.Button(
+            main_frame,
+            text="Конвертировать",
+            command=self.convert,
+            style="Accent.TButton"
+        )
+        convert_btn.pack(pady=15)
 
         # Результат
+        result_frame = tk.Frame(main_frame)
+        result_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Label(result_frame, text="Результат:", font=("Arial", 11, "bold")).pack(anchor=tk.W)
+
         self.result_label = ttk.Label(
-            main_frame, text="",
-            font=("Arial", 12, "bold")
+            result_frame,
+            text="—",
+            font=("Arial", 14, "bold"),
+            foreground="#2c3e50"
         )
-        self.result_label.pack()
+        self.result_label.pack(anchor=tk.W, pady=(5, 0))
 
         # Кнопка открытия истории
-        ttk.Button(
-            main_frame, text="Показать историю (CTRL+H)",
-            command=self.open_history_window
-        ).pack(pady=20)
+        history_btn = tk.Button(
+            main_frame,
+            text="📋 Показать историю",
+            command=self.open_history_window,
+            font=("Arial", 11, "bold"),
+            bg="#2E7D32",  # Темно-зеленый фон
+            fg="white",  # Белый текст
+            padx=30,  # Горизонтальные отступы
+            pady=12,  # Вертикальные отступы
+            relief="raised",
+            bd=2,
+            cursor="hand2"
+        )
+        history_btn.pack(pady=20)
+
+        # Эффект при наведении
+        history_btn.bind("<Enter>", lambda e: history_btn.config(bg="#388E3C"))
+        history_btn.bind("<Leave>", lambda e: history_btn.config(bg="#2E7D32"))
+
+        # Настраиваем стили
+        self.setup_styles()
+
+    def setup_styles(self):
+        """Настройка стилей для красивого интерфейса"""
+        style = ttk.Style()
+
+        # Стиль для акцентной кнопки
+        style.configure("Accent.TButton", font=("Arial", 11, "bold"))
+
+        # Стиль для кнопки истории - ВЫДЕЛЕННЫЙ
+        style.configure("History.TButton",
+                        font=("Arial", 10, "bold"),
+                        background="#4CAF50",  # Зеленый фон
+                        foreground="white",  # Белый текст
+                        padding=(10, 5))
+
+        # Стиль для выпадающих списков
+        style.configure("TCombobox", padding=5)
 
     def update_validation_status(self, *args):
         """Обновляет подсказку и визуальное отображение валидности"""
@@ -245,34 +325,78 @@ class TemperatureConverter:
         if not self.valid_input.get():
             messagebox.showerror("Ошибка", "Некорректный ввод. Введите число.")
             return
+
         try:
             temp = float(self.input_var.get())
-            mode = self.mode.get()
+            from_unit = self.from_unit.get()
+            to_unit = self.to_unit.get()
 
-            if mode == "c_to_f":
+            # Проверяем, что выбраны разные единицы
+            if from_unit == to_unit:
+                messagebox.showerror("Ошибка", "Выберите разные единицы измерения")
+                return
+
+            # Определяем тип конвертации (используем первые буквы)
+            from_letter = from_unit[0].lower()  # "ц" -> "c", "ф" -> "f", "к" -> "k"
+            to_letter = to_unit[0].lower()
+
+            # Русские буквы в английские для методов
+            russian_to_english = {"ц": "c", "ф": "f", "к": "k"}
+            from_letter = russian_to_english.get(from_letter, from_letter)
+            to_letter = russian_to_english.get(to_letter, to_letter)
+
+            conversion_type = f"{from_letter}_to_{to_letter}"
+
+            if conversion_type == "c_to_f":
                 result = TemperatureConverter.c_to_f(temp)
-                self.result_label.config(text=f"{temp}°C = {result:.2f}°F")
-                self.add_to_history(f"{temp}°C", f"{result:.2f}°F")
+                self.result_label.config(text=f"{temp:.2f}°C = {result:.2f}°F")
+                self.add_to_history(f"{temp:.2f}°C", f"{result:.2f}°F")
 
-            elif mode == "f_to_c":
-                result = TemperatureConverter.f_to_c(temp)
-                self.result_label.config(text=f"{temp}°F = {result:.2f}°C")
-                self.add_to_history(f"{temp}°F", f"{result:.2f}°C")
-
-            elif mode == "c_to_k":
+            elif conversion_type == "c_to_k":
                 result = TemperatureConverter.c_to_k(temp)
-                self.result_label.config(text=f"{temp}°C = {result:.2f}K")
-                self.add_to_history(f"{temp}°C", f"{result:.2f}K")
+                self.result_label.config(text=f"{temp:.2f}°C = {result:.2f}K")
+                self.add_to_history(f"{temp:.2f}°C", f"{result:.2f}K")
 
-            elif mode == "k_to_c":
+            elif conversion_type == "f_to_c":
+                result = TemperatureConverter.f_to_c(temp)
+                self.result_label.config(text=f"{temp:.2f}°F = {result:.2f}°C")
+                self.add_to_history(f"{temp:.2f}°F", f"{result:.2f}°C")
+
+            elif conversion_type == "f_to_k":
+                result = TemperatureConverter.f_to_k(temp)
+                self.result_label.config(text=f"{temp:.2f}°F = {result:.2f}K")
+                self.add_to_history(f"{temp:.2f}°F", f"{result:.2f}K")
+
+            elif conversion_type == "k_to_c":
                 result = TemperatureConverter.k_to_c(temp)
-                self.result_label.config(text=f"{temp}K = {result:.2f}°C")
-                self.add_to_history(f"{temp}K", f"{result:.2f}°C")
+                self.result_label.config(text=f"{temp:.2f}K = {result:.2f}°C")
+                self.add_to_history(f"{temp:.2f}K", f"{result:.2f}°C")
+
+            elif conversion_type == "k_to_f":
+                result = TemperatureConverter.k_to_f(temp)
+                self.result_label.config(text=f"{temp:.2f}K = {result:.2f}°F")
+                self.add_to_history(f"{temp:.2f}K", f"{result:.2f}°F")
+
+            else:
+                messagebox.showerror("Ошибка", f"Неизвестный тип конвертации: {conversion_type}")
 
         except ValueError as e:
             messagebox.showerror("Ошибка", str(e))
 
+    def on_unit_change(self, event=None):
+        """Обработчик изменения выбора единиц измерения"""
+        from_unit = self.from_unit.get()
+        to_unit = self.to_unit.get()
+
+        if from_unit and to_unit and from_unit == to_unit:
+            self.result_label.config(text="—", foreground="red")
+        else:
+            self.result_label.config(text="—", foreground="#2c3e50")
+
     def add_to_history(self, input_temp, result_temp):
+        from_unit = self.from_unit.get()[:1].upper()
+        to_unit = self.to_unit.get()[:1].upper()
+
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.history.insert(0, (timestamp, input_temp, result_temp))
 
