@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 from datetime import datetime
 import json
 import os
+from auth import AuthSystem, AuthWindow
 
 
 class TemperatureConverter:
@@ -50,6 +51,12 @@ class TemperatureConverter:
         self.root.title("Умный конвертер температур")
         self.root.geometry("500x500")
 
+        # Инициализация системы авторизации
+        self.auth_system = AuthSystem()
+
+        # Показываем окно авторизации
+        self.show_auth_window()
+
         # История конвертаций
         self.history = []
         self.load_history()
@@ -64,6 +71,76 @@ class TemperatureConverter:
 
         # Создание интерфейса
         self.create_widgets()
+
+    def show_auth_window(self):
+        """Показать окно авторизации"""
+        # Скрываем главное окно пока не авторизуемся
+        self.root.withdraw()
+
+        # Создаем окно авторизации
+        auth_window = AuthWindow(
+            self.auth_system,
+            on_success_callback=self.on_auth_success
+        )
+
+        # Ждем закрытия окна авторизации
+        self.root.wait_window(auth_window.auth_window)
+
+        # Проверяем, был ли успешный вход
+        if not self.auth_system.get_current_user():
+            # Если пользователь не авторизовался, закрываем приложение
+            self.root.destroy()
+
+    def on_auth_success(self):
+        """Вызывается после успешной авторизации"""
+        try:
+            # Показываем главное окно
+            self.root.deiconify()
+
+            # Загружаем историю для текущего пользователя
+            self.history = []
+            self.load_history()
+
+            # Переменные
+            self.input_var = tk.StringVar()
+            self.valid_input = tk.BooleanVar(value=True)
+            self.from_unit = tk.StringVar(value="Цельсий")
+            self.to_unit = tk.StringVar(value="Фаренгейт")
+
+            # Регистрируем функцию валидации
+            self.validate_cmd = self.root.register(self.validate_input)
+
+            # Создание интерфейса
+            self.create_widgets()
+
+            # Добавляем меню пользователя
+            self.create_user_menu()
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Ошибка при создании интерфейса: {str(e)}")
+
+    def create_user_menu(self):
+        """Создание меню пользователя"""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+
+        user_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label=f"👤 {self.auth_system.get_current_user()}", menu=user_menu)
+        user_menu.add_command(label="Сменить пароль", command=self.change_password)
+        user_menu.add_separator()
+        user_menu.add_command(label="Выйти", command=self.logout)
+
+    def change_password(self):
+        """Смена пароля"""
+        pass
+
+    def logout(self):
+        """Выход из системы"""
+        self.auth_system.logout()
+        # Очищаем интерфейс
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        # Показываем окно авторизации снова
+        self.show_auth_window()
 
     def create_widgets(self):
         # Основное окно - конвертер
@@ -424,13 +501,21 @@ class TemperatureConverter:
         self.save_history()
 
     def save_history(self):
-        with open("converter_history.json", "w") as f:
-            json.dump(self.history, f)
+        """Сохранение истории для текущего пользователя"""
+        username = self.auth_system.get_current_user()
+        history_file = f"history_{username}.json"
+
+        with open(history_file, "w", encoding="utf-8") as f:
+            json.dump(self.history, f, ensure_ascii=False, indent=2)
 
     def load_history(self):
-        if os.path.exists("converter_history.json"):
+        """Загрузка истории для текущего пользователя"""
+        username = self.auth_system.get_current_user()
+        history_file = f"history_{username}.json"
+
+        if os.path.exists(history_file):
             try:
-                with open("converter_history.json", "r") as f:
+                with open(history_file, "r", encoding="utf-8") as f:
                     self.history = json.load(f)
             except:
                 self.history = []
